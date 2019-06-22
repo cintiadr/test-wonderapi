@@ -1,0 +1,385 @@
+#!/bin/python
+
+
+
+# copied from https://github.com/alipphardt/cdc-wonder-api/blob/master/CDC%2BWONDER%2BAPI%2BExample.ipynb
+
+# something from https://rdrr.io/github/socdataR/wonderapi/f/vignettes/D76codebook.Rmd
+
+
+
+import requests
+
+
+
+
+
+def createParameterList(parameterList):
+
+    """Helper function to create a parameter list from a dictionary object"""
+
+
+
+    parameterString = ""
+
+
+
+    for key in parameterList:
+
+        parameterString += "<parameter>\n"
+
+        parameterString += "<name>" + key + "</name>\n"
+
+
+
+        if isinstance(parameterList[key], list):
+
+            for value in parameterList[key]:
+
+                parameterString += "<value>" + value + "</value>\n"
+
+        else:
+
+            parameterString += "<value>" + parameterList[key] + "</value>\n"
+
+
+
+        parameterString += "</parameter>\n"
+
+
+
+    return parameterString
+
+
+
+#######
+
+
+
+# by-variables" or those parameters selected in the "Group Results By" and the "And By" drop-down lists
+
+# in the "Request Form." These "by-variables" are the cross-tabulations, stratifications or indexes
+
+# to the query results. Expect the results data table to show a row for each category in the by-variables,
+
+# and a column for each measure. For example, if you wish to compare data by sex, then "group results by" gender,
+
+# to get a row for females and a row for males in the output.
+
+# M_ are measures to return, the default measures plus any optional measures.
+
+
+
+# For this example, will group by year and race
+
+
+
+b_parameters = {
+
+    "B_1": "D140.V9-level1",
+
+    "B_2": "D140.V9-level2",
+
+    "B_3": "D140.V5",
+
+    "B_4": "D140.V1",
+
+    "B_5": "D140.V7"
+
+}
+
+
+
+# measures to return, the default measures plus any optional measures
+
+
+
+# For this example, include deaths, population, and crude rate
+
+
+
+m_parameters = {
+
+    "M_1": "D76.M1",   # Deaths, must be included
+
+    "M_2": "D76.M2",   # Population, must be included
+
+    "M_3": "D76.M3",   # Crude rate, must be included
+
+    #"M_31": "D76.M31",        # Standard error (crude rate)
+
+    #"M_32": "D76.M32"         # 95% confidence interval (crude rate)
+
+    # "M_41": "D76.M41", # Standard error (age-adjusted rate)
+
+    # "M_42": "D76.M42"  # 95% confidence interval (age-adjusted rate)
+
+}
+
+
+
+# values highlighted in a "Finder" control for hierarchical lists,
+
+# such as the "Regions/Divisions/States/Counties hierarchical" list.
+
+
+
+# For this example, include all years, months, census regions, hhs regions, states. Only include ICD-10 K00-K92
+
+# for disease of the digestive system
+
+
+
+f_parameters = {
+
+    "F_D76.V1": ["*All*"], # year/month
+
+    "F_D76.V10": ["*All*"], # Census Regions - dont change
+
+    "F_D76.V2": ["*All*"], # ICD-10 Codes
+
+    "F_D76.V27": ["*All*"], # HHS Regions - dont change
+
+    "F_D76.V9": ["*All*"] # State County - dont change
+
+}
+
+
+
+# contents of the "Currently selected" information areas next to "Finder" controls in the "Request Form."
+
+
+
+# For this example, include all dates, census regions, hhs regions, and states.
+
+# Only include ICD-10 code K00-K92 for disease of the digestive system
+
+
+
+i_parameters = {
+
+    "I_D76.V1": "*All* (All Dates)",  # year/month
+
+    "I_D76.V10": "*All* (The United States)", # Census Regions - dont change
+
+    "I_D76.V2": "*All*", # ICD-10 Codes
+
+    "I_D76.V27": "*All* (The United States)", # HHS Regions - dont change
+
+    "I_D76.V9": "*All* (The United States)" # State County - dont change
+
+}
+
+
+
+# variable values to limit in the "where" clause of the query, found in multiple select
+
+# list boxes and advanced finder text entry boxes in the "Request Form."
+
+
+
+# For this example, we want to include ten-year age groups for ages 15-44.
+
+# For all other categories, include all values
+
+
+
+v_parameters = {
+
+    "V_D76.V1": "",         # Year/Month
+
+    "V_D76.V10": "",        # Census Regions
+
+    "V_D76.V11": "*All*",   # 2006 Urbanization
+
+    "V_D76.V12": "*All*",   # ICD-10 130 Cause List (Infants)
+
+    "V_D76.V17": "*All*",   # Hispanic Origin
+
+    "V_D76.V19": "*All*",   # 2013 Urbanization
+
+    "V_D76.V2": "",         # ICD-10 Codes
+
+    "V_D76.V20": "*All*",   # Autopsy
+
+    "V_D76.V21": "*All*",   # Place of Death
+
+    "V_D76.V22": "*All*",   # Injury Intent
+
+    "V_D76.V23": "*All*",   # Injury Mechanism and All Other Leading Causes
+
+    "V_D76.V24": "*All*",   # Weekday
+
+    "V_D76.V25": "*All*",   # Drug/Alcohol Induced Causes
+
+    "V_D76.V27": "",        # HHS Regions
+
+    "V_D76.V4": "*All*",    # ICD-10 113 Cause List
+
+    "V_D76.V5": ["15-24", "25-34", "35-44", "45-54", "55-64", "65-74", "75-84", "85+"], # Ten-Year Age Groups
+
+    "V_D76.V51": "*All*",   # Five-Year Age Groups
+
+    "V_D76.V52": "*All*",   # Single-Year Ages
+
+    "V_D76.V6": "00",       # Infant Age Groups
+
+    "V_D76.V7": "*All*",    # Gender
+
+    "V_D76.V8": "*All*",    # Race
+
+    "V_D76.V9": ""          # State/County
+
+}
+
+
+
+# other parameters, such as radio buttons, checkboxes, and lists that are not data categories
+
+
+
+# For this example, include age-adjusted rates, use ten-year age groups (D76.V5), use state location by default,
+
+# show rates per 100,000, use 2013 urbanization and use ICD-10 Codes (D76.V2) for cause of death category
+
+
+
+o_parameters = {
+
+    "O_V10_fmode": "freg",    # Use regular finder and ignore v parameter value
+
+    "O_V1_fmode": "freg",     # Use regular finder and ignore v parameter value
+
+    "O_V27_fmode": "freg",    # Use regular finder and ignore v parameter value
+
+    "O_V2_fmode": "freg",     # Use regular finder and ignore v parameter value
+
+    "O_V9_fmode": "freg",     # Use regular finder and ignore v parameter value
+
+    "O_aar": "aar_std",       # age-adjusted rates
+
+    "O_aar_pop": "0000",      # population selection for age-adjusted rates
+
+    "O_age": "D76.V5",        # select age-group (e.g. ten-year, five-year, single-year, infant groups)
+
+    "O_javascript": "on",     # Set to on by default
+
+    "O_location": "D76.V9",   # select location variable to use (e.g. state/county, census, hhs regions)
+
+    "O_precision": "2",       # decimal places
+
+    "O_rate_per": "100000",   # rates calculated per X persons
+
+    "O_show_totals": "true",  # Show totals
+
+    "O_show_zeros": "true",
+
+    "O_timeout": "300",
+
+    "O_title": "Test Cintia",    # title for data run
+
+    "O_ucd": "D76.V2",        # select underlying cause of death category
+
+    "O_urban": "D76.V19"      # select urbanization category
+
+}
+
+
+
+# values for non-standard age adjusted rates (see mortality online databases).
+
+
+
+# For this example, these parameters are ignored as standard age adjusted rates are used
+
+
+
+vm_parameters = {
+
+    "VM_D76.M6_D76.V10": "*All*",        # Location
+
+    "VM_D76.M6_D76.V17": "*All*",   # Hispanic-Origin
+
+    "VM_D76.M6_D76.V1_S": "*All*",  # Year
+
+    "VM_D76.M6_D76.V7": "*All*",    # Gender
+
+    "VM_D76.M6_D76.V8": "*All*"     # Race
+
+}
+
+
+
+
+
+
+
+# Miscellaneous hidden inputs/parameters usually passed by web form. These do not change.
+
+misc_parameters = {
+
+    "action-Send": "Send",
+
+    "finder-stage-D76.V1": "codeset",
+
+    "finder-stage-D76.V1": "codeset",
+
+    "finder-stage-D76.V2": "codeset",
+
+    "finder-stage-D76.V27": "codeset",
+
+    "finder-stage-D76.V9": "codeset",
+
+    "stage": "request"
+
+}
+
+
+
+xml_request = "<request-parameters>\n"
+
+xml_request += createParameterList(b_parameters)
+
+xml_request += createParameterList(m_parameters)
+
+xml_request += createParameterList(f_parameters)
+
+xml_request += createParameterList(i_parameters)
+
+xml_request += createParameterList(o_parameters)
+
+xml_request += createParameterList(vm_parameters)
+
+xml_request += createParameterList(v_parameters)
+
+xml_request += createParameterList(misc_parameters)
+
+xml_request += "</request-parameters>"
+
+
+
+
+
+url = "https://wonder.cdc.gov/controller/datarequest/D76"
+
+print("Sending request")
+
+
+
+response = requests.post(url, data={"request_xml": xml_request, "accept_datause_restrictions": "true"})
+
+
+
+data = response.text
+
+if response.status_code == 200:
+
+    print("success")
+
+else:
+
+    print("something went wrong")
+
+
+
+print(data)
